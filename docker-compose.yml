@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gparents}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-gparents_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gparents}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__DefaultConnection: "Host=postgres;Database=${POSTGRES_DB:-gparents_db};Username=${POSTGRES_USER:-gparents};Password=${POSTGRES_PASSWORD:-devpassword}"
+      JWT__Secret: ${JWT__Secret:-dev_jwt_secret_at_least_32_characters_long!!}
+      JWT__ExpiryDays: ${JWT__ExpiryDays:-30}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

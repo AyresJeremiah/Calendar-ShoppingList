@@ -1,0 +1,76 @@
+@page "/register"
+@inject AuthService Auth
+@inject NavigationManager Navigation
+
+<div class="auth-container">
+    <div class="auth-card">
+        <h1 class="auth-title">Create Account</h1>
+        <p class="text-center text-muted mb-2">Set up your family calendar</p>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="auth-error">@_error</div>
+        }
+
+        @if (_accountExists)
+        {
+            <p class="text-center">An account already exists.</p>
+            <button class="btn btn-primary btn-full" @onclick="@(() => Navigation.NavigateTo("/login"))">
+                Go to Login
+            </button>
+        }
+        else
+        {
+            <EditForm Model="_model" OnValidSubmit="HandleRegister">
+                <DataAnnotationsValidator />
+
+                <div class="form-group">
+                    <label>Username</label>
+                    <InputText @bind-Value="_model.Username" class="form-input" autocomplete="username" />
+                    <ValidationMessage For="@(() => _model.Username)" />
+                </div>
+
+                <div class="form-group">
+                    <label>Password (8+ characters)</label>
+                    <InputText @bind-Value="_model.Password" type="password" class="form-input" autocomplete="new-password" />
+                    <ValidationMessage For="@(() => _model.Password)" />
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full" disabled="@_loading">
+                    @if (_loading) { <span>Creating account...</span> } else { <span>Create Account</span> }
+                </button>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    private RegisterRequest _model = new();
+    private string? _error;
+    private bool _loading;
+    private bool _accountExists;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _accountExists = await Auth.CheckAccountExists();
+    }
+
+    private async Task HandleRegister()
+    {
+        _loading = true;
+        _error = null;
+
+        var (success, error) = await Auth.Register(_model.Username, _model.Password);
+
+        if (success)
+        {
+            Navigation.NavigateTo("/calendar", forceLoad: true);
+        }
+        else
+        {
+            _error = error ?? "Registration failed";
+        }
+
+        _loading = false;
+    }
+}

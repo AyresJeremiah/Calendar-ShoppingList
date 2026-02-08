@@ -1,0 +1,22 @@
+{
+  "name": "Family Calendar & Grocery",
+  "short_name": "Family Cal",
+  "id": "./",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#FAF9F6",
+  "theme_color": "#4A6FA5",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

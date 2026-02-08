@@ -1,0 +1,25 @@
+@page "/settings"
+@attribute [Authorize]
+@inject AuthService Auth
+@inject NavigationManager Navigation
+
+<h1>Settings</h1>
+
+<div class="settings-section">
+    <h2>People</h2>
+    <p class="text-muted">Manage the people who appear on your calendar.</p>
+    <PersonManager />
+</div>
+
+<div class="settings-section">
+    <h2>Account</h2>
+    <button class="btn btn-outline btn-full" @onclick="HandleLogout">Sign Out</button>
+</div>
+
+@code {
+    private async Task HandleLogout()
+    {
+        await Auth.Logout();
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+}

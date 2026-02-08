@@ -1,0 +1,117 @@
+@inject ApiService Api
+@inject DialogService DialogService
+
+<EditForm Model="Event" OnValidSubmit="HandleSave">
+    <DataAnnotationsValidator />
+
+    <div class="form-group">
+        <label>Title</label>
+        <InputText @bind-Value="Event.Title" class="form-input" />
+        <ValidationMessage For="@(() => Event.Title)" />
+    </div>
+
+    <div class="form-group">
+        <label>Description</label>
+        <InputTextArea @bind-Value="Event.Description" class="form-input" rows="2" />
+    </div>
+
+    <div class="form-group">
+        <label>Start</label>
+        <RadzenDatePicker @bind-Value="Event.StartDate" ShowTime="@(!Event.IsAllDay)"
+                          DateFormat="@(Event.IsAllDay ? "MM/dd/yyyy" : "MM/dd/yyyy HH:mm")"
+                          Style="width: 100%" />
+    </div>
+
+    <div class="form-group">
+        <label>End</label>
+        <RadzenDatePicker @bind-Value="Event.EndDate" ShowTime="@(!Event.IsAllDay)"
+                          DateFormat="@(Event.IsAllDay ? "MM/dd/yyyy" : "MM/dd/yyyy HH:mm")"
+                          Style="width: 100%" />
+    </div>
+
+    <div class="form-group">
+        <RadzenCheckBox @bind-Value="Event.IsAllDay" Name="allDay" />
+        <RadzenLabel Text="All Day" Component="allDay" Style="margin-left: 8px" />
+    </div>
+
+    <div class="form-group">
+        <label>Repeats</label>
+        <RadzenDropDown @bind-Value="Event.RecurrenceType" Data="_recurrenceOptions"
+                        TextProperty="Text" ValueProperty="Value"
+                        Style="width: 100%" />
+    </div>
+
+    @if (Event.RecurrenceType != "None")
+    {
+        <div class="form-group">
+            <label>Repeat Until (optional)</label>
+            <RadzenDatePicker @bind-Value="Event.RecurrenceEndDate" DateFormat="MM/dd/yyyy"
+                              Style="width: 100%" AllowClear="true" />
+        </div>
+    }
+
+    @if (People.Any())
+    {
+        <div class="form-group">
+            <label>People</label>
+            <RadzenCheckBoxList @bind-Value="_selectedPersonIds" Data="People"
+                                TextProperty="Name" ValueProperty="Id"
+                                TValue="int" Orientation="Radzen.Orientation.Vertical"
+                                Change="OnPersonSelectionChanged" />
+        </div>
+    }
+
+    <div class="flex gap-1 mt-2">
+        <button type="submit" class="btn btn-primary" style="flex:1">Save</button>
+        @if (!IsNew)
+        {
+            <button type="button" class="btn btn-danger" style="flex:1" @onclick="HandleDelete">Delete</button>
+        }
+        <button type="button" class="btn btn-outline" @onclick="@(() => DialogService.Close())">Cancel</button>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter] public CalendarEventDto Event { get; set; } = new();
+    [Parameter] public List<PersonDto> People { get; set; } = new();
+    [Parameter] public bool IsNew { get; set; }
+
+    private IEnumerable<int> _selectedPersonIds = Enumerable.Empty<int>();
+
+    protected override void OnParametersSet()
+    {
+        _selectedPersonIds = Event.PersonIds ?? new List<int>();
+    }
+
+    private void OnPersonSelectionChanged(object value)
+    {
+        Event.PersonIds = _selectedPersonIds.ToList();
+    }
+
+    private List<object> _recurrenceOptions = new()
+    {
+        new { Text = "Does not repeat", Value = "None" },
+        new { Text = "Weekly", Value = "Weekly" },
+        new { Text = "Monthly", Value = "Monthly" },
+        new { Text = "Yearly", Value = "Yearly" }
+    };
+
+    private async Task HandleSave()
+    {
+        if (IsNew)
+        {
+            await Api.PostAsync<CalendarEventDto, CalendarEventDto>("api/events", Event);
+        }
+        else
+        {
+            await Api.PutAsync<CalendarEventDto, CalendarEventDto>($"api/events/{Event.Id}", Event);
+        }
+        DialogService.Close(true);
+    }
+
+    private async Task HandleDelete()
+    {
+        await Api.DeleteAsync($"api/events/{Event.Id}");
+        DialogService.Close(false);
+    }
+}

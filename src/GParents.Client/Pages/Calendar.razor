@@ -1,0 +1,77 @@
+@page "/calendar"
+@page "/"
+@attribute [Authorize]
+@inject ApiService Api
+@inject DialogService DialogService
+
+<h1>Calendar</h1>
+
+<RadzenScheduler @ref="_scheduler" TItem="CalendarEventOccurrenceDto" Data="_events"
+                 StartProperty="StartDate" EndProperty="EndDate" TextProperty="Title"
+                 SlotSelect="OnSlotSelect" AppointmentSelect="OnEventSelect"
+                 LoadData="OnLoadData"
+                 Style="height: calc(100vh - 180px);">
+    <RadzenMonthView />
+</RadzenScheduler>
+
+@code {
+    private RadzenScheduler<CalendarEventOccurrenceDto>? _scheduler;
+    private List<CalendarEventOccurrenceDto> _events = new();
+    private List<PersonDto> _people = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _people = await Api.GetAsync<List<PersonDto>>("api/people") ?? new();
+    }
+
+    private async Task OnLoadData(SchedulerLoadDataEventArgs args)
+    {
+        var start = args.Start.ToString("o");
+        var end = args.End.ToString("o");
+        _events = await Api.GetAsync<List<CalendarEventOccurrenceDto>>($"api/events?start={start}&end={end}") ?? new();
+    }
+
+    private async Task OnSlotSelect(SchedulerSlotSelectEventArgs args)
+    {
+        var newEvent = new CalendarEventDto
+        {
+            StartDate = args.Start,
+            EndDate = args.End,
+            IsAllDay = args.Start.TimeOfDay == TimeSpan.Zero && args.End.TimeOfDay == TimeSpan.Zero
+        };
+
+        var result = await DialogService.OpenAsync<EventDialog>("New Event",
+            new Dictionary<string, object>
+            {
+                { "Event", newEvent },
+                { "People", _people },
+                { "IsNew", true }
+            },
+            new DialogOptions { Width = "95vw", Style = "max-width: 500px" });
+
+        if (result is true)
+        {
+            await _scheduler!.Reload();
+        }
+    }
+
+    private async Task OnEventSelect(SchedulerAppointmentSelectEventArgs<CalendarEventOccurrenceDto> args)
+    {
+        var existing = await Api.GetAsync<CalendarEventDto>($"api/events/{args.Data.SourceEventId}");
+        if (existing == null) return;
+
+        var result = await DialogService.OpenAsync<EventDialog>("Edit Event",
+            new Dictionary<string, object>
+            {
+                { "Event", existing },
+                { "People", _people },
+                { "IsNew", false }
+            },
+            new DialogOptions { Width = "95vw", Style = "max-width: 500px" });
+
+        if (result is true or false)
+        {
+            await _scheduler!.Reload();
+        }
+    }
+}

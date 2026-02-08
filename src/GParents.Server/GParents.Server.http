@@ -1,0 +1,6 @@
+@GParents.Server_HostAddress = http://localhost:5286
+
+GET {{GParents.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

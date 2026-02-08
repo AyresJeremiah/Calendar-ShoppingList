@@ -1,0 +1,110 @@
+@page "/grocery"
+@attribute [Authorize]
+@inject ApiService Api
+@inject NotificationService Notification
+
+<div class="grocery-header">
+    <h1 style="margin:0">Grocery List</h1>
+    @if (_categories.Any(c => c.Items.Any(i => i.IsChecked)))
+    {
+        <button class="btn btn-sm btn-danger" @onclick="ClearChecked">Clear Checked</button>
+    }
+</div>
+
+<!-- Add Item Form -->
+<div class="grocery-add-form">
+    <input @bind="_newItemName" @bind:event="oninput" @onkeydown="HandleKeyDown"
+           class="form-input" placeholder="Add item..." />
+    <RadzenDropDown @bind-Value="_selectedCategoryId" Data="_categories"
+                    TextProperty="Name" ValueProperty="Id"
+                    Style="min-width: 130px" />
+    <button class="btn btn-primary btn-sm" @onclick="AddItem" disabled="@string.IsNullOrWhiteSpace(_newItemName)">Add</button>
+</div>
+
+@foreach (var category in _categories.Where(c => c.Items.Any()))
+{
+    <div class="category-section">
+        <div class="category-header">@category.Name</div>
+        @foreach (var item in category.Items)
+        {
+            <div class="grocery-item @(item.IsChecked ? "checked" : "")">
+                <input type="checkbox" checked="@item.IsChecked"
+                       @onchange="@(e => ToggleItem(item))" />
+                <span class="grocery-item-name">@item.Name</span>
+                @if (!string.IsNullOrEmpty(item.Quantity))
+                {
+                    <span class="grocery-item-quantity">@item.Quantity</span>
+                }
+                <button class="grocery-item-delete" @onclick="@(() => DeleteItem(item))">X</button>
+            </div>
+        }
+    </div>
+}
+
+@if (!_categories.Any(c => c.Items.Any()))
+{
+    <div class="text-center text-muted mt-2">
+        <p>Your grocery list is empty.</p>
+        <p>Add items above to get started!</p>
+    </div>
+}
+
+@code {
+    private List<GroceryCategoryDto> _categories = new();
+    private string _newItemName = string.Empty;
+    private int _selectedCategoryId = 10; // "Other" by default
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategories();
+    }
+
+    private async Task LoadCategories()
+    {
+        _categories = await Api.GetAsync<List<GroceryCategoryDto>>("api/grocery/categories") ?? new();
+        if (_selectedCategoryId == 0 && _categories.Any())
+            _selectedCategoryId = _categories.Last().Id;
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_newItemName))
+        {
+            await AddItem();
+        }
+    }
+
+    private async Task AddItem()
+    {
+        if (string.IsNullOrWhiteSpace(_newItemName)) return;
+
+        await Api.PostAsync<CreateGroceryItemRequest, GroceryItemDto>("api/grocery/items",
+            new CreateGroceryItemRequest
+            {
+                Name = _newItemName.Trim(),
+                CategoryId = _selectedCategoryId
+            });
+
+        _newItemName = string.Empty;
+        await LoadCategories();
+    }
+
+    private async Task ToggleItem(GroceryItemDto item)
+    {
+        await Api.PutAsync<UpdateGroceryItemRequest, GroceryItemDto>($"api/grocery/items/{item.Id}",
+            new UpdateGroceryItemRequest { IsChecked = !item.IsChecked });
+        await LoadCategories();
+    }
+
+    private async Task DeleteItem(GroceryItemDto item)
+    {
+        await Api.DeleteAsync($"api/grocery/items/{item.Id}");
+        await LoadCategories();
+    }
+
+    private async Task ClearChecked()
+    {
+        await Api.DeleteAsync("api/grocery/items/checked");
+        await LoadCategories();
+    }
+}

@@ -1,0 +1,109 @@
+@inject ApiService Api
+
+@foreach (var person in _people)
+{
+    <div class="person-row">
+        @if (_editingId == person.Id)
+        {
+            <input type="color" @bind="_editColor" class="person-color" style="border: none; padding: 0; cursor: pointer;" />
+            <input @bind="_editName" class="form-input" style="flex: 1; min-height: 44px;" />
+            <div class="person-actions">
+                <button class="btn btn-sm btn-primary" @onclick="SaveEdit">Save</button>
+                <button class="btn btn-sm btn-outline" @onclick="CancelEdit">Cancel</button>
+            </div>
+        }
+        else
+        {
+            <div class="person-color" style="background-color: @person.Color;"></div>
+            <span class="person-name">@person.Name</span>
+            <div class="person-actions">
+                <button class="btn btn-sm btn-outline" @onclick="@(() => StartEdit(person))">Edit</button>
+                <button class="btn btn-sm btn-danger" @onclick="@(() => DeletePerson(person.Id))">Delete</button>
+            </div>
+        }
+    </div>
+}
+
+<div class="person-row" style="border-bottom: none;">
+    <input type="color" @bind="_newColor" class="person-color" style="border: none; padding: 0; cursor: pointer;" />
+    <input @bind="_newName" @bind:event="oninput" @onkeydown="HandleKeyDown"
+           class="form-input" style="flex: 1; min-height: 44px;" placeholder="Add person..." />
+    <button class="btn btn-sm btn-primary" @onclick="AddPerson" disabled="@string.IsNullOrWhiteSpace(_newName)">Add</button>
+</div>
+
+@code {
+    private List<PersonDto> _people = new();
+    private string _newName = string.Empty;
+    private string _newColor = "#4A6FA5";
+
+    private int? _editingId;
+    private string _editName = string.Empty;
+    private string _editColor = "#4A6FA5";
+
+    private static readonly string[] _defaultColors = { "#4A6FA5", "#D4A5A5", "#9B89B3", "#6BBF59", "#E17055", "#00CEC9", "#FDCB6E" };
+    private int _colorIndex = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPeople();
+    }
+
+    private async Task LoadPeople()
+    {
+        _people = await Api.GetAsync<List<PersonDto>>("api/people") ?? new();
+        _colorIndex = _people.Count % _defaultColors.Length;
+        _newColor = _defaultColors[_colorIndex];
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_newName))
+            await AddPerson();
+    }
+
+    private async Task AddPerson()
+    {
+        if (string.IsNullOrWhiteSpace(_newName)) return;
+
+        await Api.PostAsync<PersonDto, PersonDto>("api/people", new PersonDto
+        {
+            Name = _newName.Trim(),
+            Color = _newColor
+        });
+
+        _newName = string.Empty;
+        await LoadPeople();
+    }
+
+    private void StartEdit(PersonDto person)
+    {
+        _editingId = person.Id;
+        _editName = person.Name;
+        _editColor = person.Color;
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+    }
+
+    private async Task SaveEdit()
+    {
+        if (_editingId == null || string.IsNullOrWhiteSpace(_editName)) return;
+
+        await Api.PutAsync<PersonDto, PersonDto>($"api/people/{_editingId}", new PersonDto
+        {
+            Name = _editName.Trim(),
+            Color = _editColor
+        });
+
+        _editingId = null;
+        await LoadPeople();
+    }
+
+    private async Task DeletePerson(int id)
+    {
+        await Api.DeleteAsync($"api/people/{id}");
+        await LoadPeople();
+    }
+}
