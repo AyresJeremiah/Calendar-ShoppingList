@@ -14,8 +14,8 @@
                  SlotSelect="OnSlotSelect" AppointmentSelect="OnEventSelect"
                  SlotRender="OnSlotRender"
                  LoadData="OnLoadData"
-                 SelectedIndex="@_selectedViewIndex"
-                 Date="@_currentDate"
+                 @bind-SelectedIndex="_selectedViewIndex"
+                 @bind-Date="_currentDate"
                  Style="height: calc(100vh - 180px);">
     <RadzenMonthView />
     <RadzenWeekView />
