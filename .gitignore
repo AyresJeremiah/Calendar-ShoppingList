@@ -6,6 +6,10 @@
 # dotenv files
 .env
 
+# SSL certs and certbot
+docker/nginx/ssl/
+docker/certbot/
+
 # User-specific files
 *.rsuser
 *.suo
