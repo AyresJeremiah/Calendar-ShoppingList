@@ -9,13 +9,12 @@
     <button class="btn btn-primary btn-sm" @onclick="OnNewEvent">+ New Event</button>
 </div>
 
-<RadzenScheduler @ref="_scheduler" TItem="CalendarEventOccurrenceDto" Data="_events"
+<RadzenScheduler @key="_schedulerKey" @ref="_scheduler" TItem="CalendarEventOccurrenceDto" Data="_events"
                  StartProperty="StartDate" EndProperty="EndDate" TextProperty="Title"
                  SlotSelect="OnSlotSelect" AppointmentSelect="OnEventSelect"
-                 SlotRender="OnSlotRender"
                  LoadData="OnLoadData"
-                 @bind-SelectedIndex="_selectedViewIndex"
-                 @bind-Date="_currentDate"
+                 SelectedIndex="_selectedViewIndex"
+                 Date="_currentDate"
                  Style="height: calc(100vh - 180px);">
     <RadzenMonthView />
     <RadzenWeekView />
@@ -28,6 +27,7 @@
     private List<PersonDto> _people = new();
     private int _selectedViewIndex = 0;
     private DateTime _currentDate = DateTime.Today;
+    private int _schedulerKey = 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -44,7 +44,7 @@
     private async Task OnSlotSelect(SchedulerSlotSelectEventArgs args)
     {
         // Month view slots are full-day ranges (midnight to midnight).
-        // Detect this and navigate to day view instead of opening the dialog.
+        // Navigate to day view for that date.
         var isMonthSlot = args.Start.TimeOfDay == TimeSpan.Zero
                           && args.End.TimeOfDay == TimeSpan.Zero
                           && (args.End - args.Start).TotalDays <= 1;
@@ -53,7 +53,7 @@
         {
             _currentDate = args.Start.Date;
             _selectedViewIndex = 2; // Day view
-            StateHasChanged();
+            _schedulerKey++;        // Force re-create scheduler with new view
             return;
         }
 
@@ -112,10 +112,5 @@
         {
             await _scheduler!.Reload();
         }
-    }
-
-    private void OnSlotRender(SchedulerSlotRenderEventArgs args)
-    {
-        // No custom rendering needed for now
     }
 }

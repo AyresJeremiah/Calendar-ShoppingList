@@ -83,13 +83,13 @@ a:hover { text-decoration: underline; }
     right: 0;
     display: flex;
     justify-content: space-around;
-    align-items: center;
-    height: var(--nav-height);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    align-items: stretch;
     background: var(--surface);
     border-top: 1px solid var(--border);
     z-index: 100;
     box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    overflow: hidden;
 }
 
 .nav-item {
@@ -98,12 +98,14 @@ a:hover { text-decoration: underline; }
     align-items: center;
     justify-content: center;
     flex: 1;
-    min-height: 56px;
+    height: var(--nav-height);
+    max-height: var(--nav-height);
     padding: 8px 0;
     color: var(--text-light);
     text-decoration: none;
     transition: color 0.2s;
     -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
 }
 
 .nav-item.active {
