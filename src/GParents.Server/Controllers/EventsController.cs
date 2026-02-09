@@ -22,6 +22,12 @@ public class EventsController : ControllerBase
 
     private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+    private static DateTime ToUtc(DateTime dt) =>
+        dt.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : dt.ToUniversalTime();
+
+    private static DateTime? ToUtc(DateTime? dt) =>
+        dt.HasValue ? ToUtc(dt.Value) : null;
+
     [HttpGet]
     public async Task<ActionResult<List<CalendarEventOccurrenceDto>>> GetEvents(
         [FromQuery] DateTime start, [FromQuery] DateTime end)
@@ -142,11 +148,11 @@ public class EventsController : ControllerBase
             UserId = userId,
             Title = dto.Title,
             Description = dto.Description,
-            StartDate = dto.StartDate,
-            EndDate = dto.EndDate,
+            StartDate = ToUtc(dto.StartDate),
+            EndDate = ToUtc(dto.EndDate),
             IsAllDay = dto.IsAllDay,
             RecurrenceType = Enum.Parse<RecurrenceType>(dto.RecurrenceType),
-            RecurrenceEndDate = dto.RecurrenceEndDate
+            RecurrenceEndDate = ToUtc(dto.RecurrenceEndDate)
         };
 
         _db.CalendarEvents.Add(evt);
@@ -182,11 +188,11 @@ public class EventsController : ControllerBase
 
         evt.Title = dto.Title;
         evt.Description = dto.Description;
-        evt.StartDate = dto.StartDate;
-        evt.EndDate = dto.EndDate;
+        evt.StartDate = ToUtc(dto.StartDate);
+        evt.EndDate = ToUtc(dto.EndDate);
         evt.IsAllDay = dto.IsAllDay;
         evt.RecurrenceType = Enum.Parse<RecurrenceType>(dto.RecurrenceType);
-        evt.RecurrenceEndDate = dto.RecurrenceEndDate;
+        evt.RecurrenceEndDate = ToUtc(dto.RecurrenceEndDate);
 
         // Update person assignments
         _db.EventPeople.RemoveRange(evt.EventPeople);
