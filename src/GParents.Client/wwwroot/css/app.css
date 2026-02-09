@@ -268,13 +268,19 @@ a:hover { text-decoration: underline; }
 
 .grocery-add-form {
     display: flex;
+    flex-direction: column;
     gap: 8px;
     margin-bottom: 16px;
 }
 
 .grocery-add-form .form-input {
-    flex: 1;
-    min-height: 48px;
+    width: 100%;
+    min-height: 56px;
+}
+
+.grocery-add-row {
+    display: flex;
+    gap: 8px;
 }
 
 .category-section {

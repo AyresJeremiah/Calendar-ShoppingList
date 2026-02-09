@@ -4,12 +4,18 @@
 @inject ApiService Api
 @inject DialogService DialogService
 
-<h1>Calendar</h1>
+<div class="flex justify-between items-center mb-1">
+    <h1 style="margin:0">Calendar</h1>
+    <button class="btn btn-primary btn-sm" @onclick="OnNewEvent">+ New Event</button>
+</div>
 
 <RadzenScheduler @ref="_scheduler" TItem="CalendarEventOccurrenceDto" Data="_events"
                  StartProperty="StartDate" EndProperty="EndDate" TextProperty="Title"
                  SlotSelect="OnSlotSelect" AppointmentSelect="OnEventSelect"
+                 SlotRender="OnSlotRender"
                  LoadData="OnLoadData"
+                 SelectedIndex="@_selectedViewIndex"
+                 Date="@_currentDate"
                  Style="height: calc(100vh - 180px);">
     <RadzenMonthView />
     <RadzenWeekView />
@@ -20,6 +26,8 @@
     private RadzenScheduler<CalendarEventOccurrenceDto>? _scheduler;
     private List<CalendarEventOccurrenceDto> _events = new();
     private List<PersonDto> _people = new();
+    private int _selectedViewIndex = 0;
+    private DateTime _currentDate = DateTime.Today;
 
     protected override async Task OnInitializedAsync()
     {
@@ -35,11 +43,40 @@
 
     private async Task OnSlotSelect(SchedulerSlotSelectEventArgs args)
     {
+        // Month view slots are full-day ranges (midnight to midnight).
+        // Detect this and navigate to day view instead of opening the dialog.
+        var isMonthSlot = args.Start.TimeOfDay == TimeSpan.Zero
+                          && args.End.TimeOfDay == TimeSpan.Zero
+                          && (args.End - args.Start).TotalDays <= 1;
+
+        if (isMonthSlot)
+        {
+            _currentDate = args.Start.Date;
+            _selectedViewIndex = 2; // Day view
+            StateHasChanged();
+            return;
+        }
+
+        // Week/Day view: selecting a time slot opens new event dialog
+        await OpenNewEventDialog(args.Start, args.End);
+    }
+
+    private async Task OnNewEvent()
+    {
+        var now = DateTime.Now;
+        var start = new DateTime(now.Year, now.Month, now.Day, now.Hour + 1, 0, 0);
+        var end = start.AddHours(1);
+
+        await OpenNewEventDialog(start, end);
+    }
+
+    private async Task OpenNewEventDialog(DateTime start, DateTime end)
+    {
         var newEvent = new CalendarEventDto
         {
-            StartDate = args.Start,
-            EndDate = args.End,
-            IsAllDay = args.Start.TimeOfDay == TimeSpan.Zero && args.End.TimeOfDay == TimeSpan.Zero
+            StartDate = start,
+            EndDate = end,
+            IsAllDay = start.TimeOfDay == TimeSpan.Zero && end.TimeOfDay == TimeSpan.Zero
         };
 
         var result = await DialogService.OpenAsync<EventDialog>("New Event",
@@ -75,5 +112,10 @@
         {
             await _scheduler!.Reload();
         }
+    }
+
+    private void OnSlotRender(SchedulerSlotRenderEventArgs args)
+    {
+        // No custom rendering needed for now
     }
 }

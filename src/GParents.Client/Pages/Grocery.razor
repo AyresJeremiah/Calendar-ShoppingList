@@ -15,10 +15,12 @@
 <div class="grocery-add-form">
     <input @bind="_newItemName" @bind:event="oninput" @onkeydown="HandleKeyDown"
            class="form-input" placeholder="Add item..." />
-    <RadzenDropDown @bind-Value="_selectedCategoryId" Data="_categories"
-                    TextProperty="Name" ValueProperty="Id"
-                    Style="min-width: 130px" />
-    <button class="btn btn-primary btn-sm" @onclick="AddItem" disabled="@string.IsNullOrWhiteSpace(_newItemName)">Add</button>
+    <div class="grocery-add-row">
+        <RadzenDropDown @bind-Value="_selectedCategoryId" Data="_categories"
+                        TextProperty="Name" ValueProperty="Id"
+                        Style="flex: 1" />
+        <button class="btn btn-primary btn-sm" @onclick="AddItem" disabled="@string.IsNullOrWhiteSpace(_newItemName)">Add</button>
+    </div>
 </div>
 
 @foreach (var category in _categories.Where(c => c.Items.Any()))
