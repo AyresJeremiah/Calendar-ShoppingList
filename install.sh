@@ -9,7 +9,6 @@ set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "$0")" && pwd)"
 NGINX_SSL_DIR="$APP_DIR/docker/nginx/ssl"
-CERTBOT_WWW_DIR="$APP_DIR/docker/certbot/www"
 ENV_FILE="$APP_DIR/.env"
 NGINX_PROD_CONF="$APP_DIR/docker/nginx/nginx.prod.conf"
 
@@ -40,16 +39,10 @@ echo ""
 
 read -rp "Enter your domain name (e.g. calendar.example.com): " DOMAIN
 if [[ -z "$DOMAIN" ]]; then
-    error "Domain name is required for HTTPS"
-fi
-
-read -rp "Enter an email for Let's Encrypt notifications: " LE_EMAIL
-if [[ -z "$LE_EMAIL" ]]; then
-    error "Email is required for Let's Encrypt"
+    error "Domain name is required"
 fi
 
 info "Domain: $DOMAIN"
-info "Email:  $LE_EMAIL"
 echo ""
 
 # ============================================================
@@ -87,19 +80,7 @@ fi
 info "Docker Compose: $(docker compose version --short)"
 
 # ============================================================
-# 3. Install certbot if not present
-# ============================================================
-
-if command -v certbot &>/dev/null; then
-    info "Certbot already installed"
-else
-    info "Installing certbot..."
-    apt-get install -y -qq certbot
-    info "Certbot installed"
-fi
-
-# ============================================================
-# 4. Generate secrets and create .env
+# 3. Generate secrets and create .env
 # ============================================================
 
 generate_password() {
@@ -129,74 +110,41 @@ EOF
 fi
 
 # ============================================================
-# 5. Set domain in nginx config
+# 4. Set domain in nginx config
 # ============================================================
 
 info "Configuring nginx for domain: $DOMAIN"
 sed -i "s/DOMAIN_PLACEHOLDER/$DOMAIN/g" "$NGINX_PROD_CONF"
 
 # ============================================================
-# 6. Obtain SSL certificate
+# 5. SSL certificates
 # ============================================================
 
-mkdir -p "$NGINX_SSL_DIR" "$CERTBOT_WWW_DIR"
+mkdir -p "$NGINX_SSL_DIR"
 
 if [[ -f "$NGINX_SSL_DIR/fullchain.pem" && -f "$NGINX_SSL_DIR/privkey.pem" ]]; then
-    warn "SSL certificates already exist — skipping"
+    info "SSL certificates found"
 else
-    info "Obtaining SSL certificate from Let's Encrypt..."
-    info "Make sure port 80 is open and $DOMAIN points to this server!"
     echo ""
-    read -rp "Press Enter to continue (or Ctrl+C to abort)..."
+    warn "SSL certificates not found!"
+    echo ""
+    echo "  Place your certificate files at:"
+    echo "    $NGINX_SSL_DIR/fullchain.pem"
+    echo "    $NGINX_SSL_DIR/privkey.pem"
+    echo ""
+    read -rp "Press Enter after placing the files (or Ctrl+C to abort)..."
 
-    # Stop anything on port 80
-    if lsof -i :80 &>/dev/null; then
-        warn "Something is running on port 80 — attempting to stop..."
-        fuser -k 80/tcp 2>/dev/null || true
-        sleep 2
+    if [[ ! -f "$NGINX_SSL_DIR/fullchain.pem" || ! -f "$NGINX_SSL_DIR/privkey.pem" ]]; then
+        error "Certificate files not found. Cannot continue without SSL certs."
     fi
 
-    certbot certonly \
-        --standalone \
-        --non-interactive \
-        --agree-tos \
-        --email "$LE_EMAIL" \
-        -d "$DOMAIN"
-
-    # Copy certs to nginx ssl dir
-    cp "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" "$NGINX_SSL_DIR/fullchain.pem"
-    cp "/etc/letsencrypt/live/$DOMAIN/privkey.pem" "$NGINX_SSL_DIR/privkey.pem"
-    chmod 600 "$NGINX_SSL_DIR/privkey.pem"
-
-    info "SSL certificate obtained and installed"
+    info "SSL certificates found"
 fi
 
-# ============================================================
-# 7. Set up automatic cert renewal
-# ============================================================
-
-RENEW_SCRIPT="/etc/cron.weekly/gparents-cert-renew"
-if [[ ! -f "$RENEW_SCRIPT" ]]; then
-    info "Setting up automatic certificate renewal..."
-    cat > "$RENEW_SCRIPT" <<EOF
-#!/bin/bash
-# Renew Let's Encrypt certs and copy to app
-certbot renew --quiet
-
-# Copy renewed certs
-if [[ -f /etc/letsencrypt/live/$DOMAIN/fullchain.pem ]]; then
-    cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem $NGINX_SSL_DIR/fullchain.pem
-    cp /etc/letsencrypt/live/$DOMAIN/privkey.pem $NGINX_SSL_DIR/privkey.pem
-    # Reload nginx
-    cd $APP_DIR && docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload 2>/dev/null || true
-fi
-EOF
-    chmod +x "$RENEW_SCRIPT"
-    info "Weekly cert renewal cron job created"
-fi
+chmod 600 "$NGINX_SSL_DIR/privkey.pem"
 
 # ============================================================
-# 8. Build and start the application
+# 6. Build and start the application
 # ============================================================
 
 info "Building and starting the application..."

@@ -38,7 +38,6 @@ services:
     volumes:
       - ./docker/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
       - ./docker/nginx/ssl:/etc/nginx/ssl:ro
-      - ./docker/certbot/www:/var/www/certbot:ro
     depends_on:
       - app
     restart: unless-stopped
